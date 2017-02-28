@@ -1,13 +1,12 @@
-package com.eegsmart.eegenjoysleep.manager;
+package com.wyuxks.downloadmaster.manager;
 
 
 import android.util.Log;
 
-import com.eegsmart.eegenjoysleep.config.MusicConstants;
-import com.eegsmart.eegenjoysleep.control.config.AppConfig;
-import com.eegsmart.eegenjoysleep.entry.DownLoadInfo;
-import com.eegsmart.eegenjoysleep.entry.MusicInfo;
-import com.eegsmart.eegenjoysleep.factory.ThreadPoolProxyFactory;
+import com.wyuxks.downloadmaster.bean.DownLoadInfo;
+import com.wyuxks.downloadmaster.config.DownConstants;
+import com.wyuxks.downloadmaster.config.Info;
+import com.wyuxks.downloadmaster.factory.ThreadPoolProxyFactory;
 
 import java.io.File;
 import java.io.FileOutputStream;
@@ -17,8 +16,6 @@ import java.net.HttpURLConnection;
 import java.net.URL;
 import java.util.HashMap;
 import java.util.Map;
-
-import de.greenrobot.event.EventBus;
 
 
 /**
@@ -52,21 +49,18 @@ public class DownLoadManger {
 
 
     /**
-     * @param musicInfo
+     * @param info
      * @des 触发加载
      * @called 用户点击了下载按钮的时候
      */
-    public void downLoad(MusicInfo musicInfo) {
+    public void downLoad(Info info) {
 
-        DownLoadInfo downLoadInfo = getDownLoadInfo(musicInfo);
+        DownLoadInfo downLoadInfo = getDownLoadInfo(info);
         //保存到集合中
         mCacheDownLoadInfoMap.put(downLoadInfo.name, downLoadInfo);
 
-        /*############### 当前状态:未下载 ###############*/
-        musicInfo.setDownStatus(MusicConstants.DOWNLOADING);
-
         /*############### 当前状态:等待状态 ###############*/
-        musicInfo.setDownStatus(MusicConstants.WAIT_DOWNLOAD);
+        info.setDownStatus(DownConstants.WAIT_DOWNLOAD);
 
         /**
          预先把状态设置为等待状态
@@ -75,12 +69,42 @@ public class DownLoadManger {
          */
         //异步下载
         DownLoadTask downLoadTask = new DownLoadTask(downLoadInfo);
-
         //downLoadInfo中记录对应的下载任务
         downLoadInfo.downLoadTask = downLoadTask;
+        new Thread(downLoadTask).start();
         ThreadPoolProxyFactory.createDownLoadThreadPoolProxy().execute(downLoadTask);
 
     }
+
+    /**
+     * @param downLoadInfo
+     * @des 暂停下载
+     * @called 如果现在正在下载, 用户点击了下载按钮
+     */
+    public void pauseDownLoad(DownLoadInfo downLoadInfo) {
+
+        /*############### 当前状态:暂停下载 ###############*/
+        downLoadInfo.curState = DownConstants.STOP_DOWNLOADING;
+
+        //downLoadInfo里面的状态发生改变了.通知所有的观察者
+    }
+
+    /**
+     * @param downLoadInfo
+     * @des 取消下载
+     * @called 当前任务在缓存队列中的时候, 用户点击了下载按钮的时候
+     */
+    public void cancelDownLoad(DownLoadInfo downLoadInfo) {
+        /*############### 当前状态:未下载 ###############*/
+        downLoadInfo.curState =DownConstants.UNDOWNLOAD;
+
+        //downLoadInfo里面的状态发生改变了.通知所有的观察者
+
+        /*########移除该下载任务###########*/
+        ThreadPoolProxyFactory.createDownLoadThreadPoolProxy().remove(downLoadInfo.downLoadTask);
+    }
+
+
 
     class DownLoadTask implements Runnable {
         private final DownLoadInfo downLoadInfo;
@@ -92,7 +116,7 @@ public class DownLoadManger {
         @Override
         public void run() {
             /*############### 当前状态:下载中 ###############*/
-            downLoadInfo.curState = MusicConstants.DOWNLOADING;
+            downLoadInfo.curState = DownConstants.DOWNLOADING;
 
             //downLoadInfo里面的状态发生改变了.通知其他界面
 
@@ -126,27 +150,27 @@ public class DownLoadManger {
                     int len = -1;
                     while ((len = in.read(buffer)) != -1) {
                         /*############### 当前状态:下载中 ###############*/
-                        downLoadInfo.curState = MusicConstants.DOWNLOADING;
+                        downLoadInfo.curState = DownConstants.DOWNLOADING;
                         downLoadInfo.progress += len;
                         //downLoadInfo里面的状态发生改变了.通知其他界面
-                        EventBus.getDefault().post(downLoadInfo);
+                        //EventBus.getDefault().post(downLoadInfo);
                         out.write(buffer, 0, len);
                         //使用okHttpClient进行文件的读写的时候加上如下代码
                         if (saveApk.length() == downLoadInfo.max) {//写完了,主动跳出while循环
                             break;
                         }
                     }
-                    downLoadInfo.curState = MusicConstants.DOWNLOADEDFINISH;
+                    downLoadInfo.curState = DownConstants.DOWNLOADEDFINISH;
                     mCacheDownLoadInfoMap.remove(downLoadInfo.name);
                     Log.e(TAG, downLoadInfo.name + " download finish...");
                     //downLoadInfo里面的状态发生改变了.通知其他界面
-                    EventBus.getDefault().post(downLoadInfo);
+                    //EventBus.getDefault().post(downLoadInfo);
                 }
             } catch (Exception e) {
                 e.printStackTrace();
-                downLoadInfo.curState = MusicConstants.DOWNLOADFAIL;
+                downLoadInfo.curState = DownConstants.DOWNLOADFAIL;
                 //downLoadInfo里面的状态发生改变了.通知界面
-                EventBus.getDefault().post(downLoadInfo);
+                //EventBus.getDefault().post(downLoadInfo);
                 Log.e(TAG, "download fail...");
             } finally {
                 try {
@@ -168,10 +192,10 @@ public class DownLoadManger {
      * @return
      * @des 根据传递过来的ItemInfoBean信息返回一个DownLoadInfo对象
      */
-    public DownLoadInfo getDownLoadInfo(MusicInfo itemInfoBean) {
+    public DownLoadInfo getDownLoadInfo(Info itemInfoBean) {
         DownLoadInfo downLoadInfo = new DownLoadInfo();
         //赋值-->常规的赋值-->其他字段赋值
-        String dir = AppConfig.getInstance().getMusicDirPath();
+        String dir = DownConstants.DOWN_PATH;
         String url = itemInfoBean.getUrl();
         String substring = url.substring(url.length() - 3);
         String fileName = itemInfoBean.getName() + "." + substring;
@@ -189,7 +213,7 @@ public class DownLoadManger {
         File saveMusic = new File(downLoadInfo.savePath);
         if (saveMusic.exists() && saveMusic.length() == downLoadInfo.max) {
 //            Log.e(TAG, "saveMusic.length():" + saveMusic.length() + " downLoadInfo.max : " + downLoadInfo.max);
-            downLoadInfo.curState = MusicConstants.DOWNLOADEDFINISH;//已下载
+            downLoadInfo.curState = DownConstants.DOWNLOADEDFINISH;//已下载
             return downLoadInfo;
         }
         /**
@@ -204,7 +228,7 @@ public class DownLoadManger {
             return downLoadInfo;
         }
         //未下载
-        downLoadInfo.curState = MusicConstants.UNDOWNLOAD;
+        downLoadInfo.curState = DownConstants.UNDOWNLOAD;
         return downLoadInfo;
     }
 

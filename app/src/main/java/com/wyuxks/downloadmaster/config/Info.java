@@ -1,9 +1,13 @@
-package com.eegsmart.eegenjoysleep.entry;
+package com.wyuxks.downloadmaster.config;
 
 /**
- * Created by Xie on 2016/8/23.
+ * 创建者      xks
+ * 创建时间   2016/8/23 15:15
+ * 描述	     封装/存放/组合 和下载相关的参数
+ * 更新者     $Author: admin $
+ * 更新描述   ${TODO}
  */
-public class MusicInfo {
+public class Info {
     private String artist;
     private String duration;
     private String name;
@@ -13,7 +17,7 @@ public class MusicInfo {
     private long size; //歌曲大小
 
 
-    public MusicInfo(String artist, String duration, String name, String url, int downStatus, int selectStatus, long size) {
+    public Info(String artist, String duration, String name, String url, int downStatus, int selectStatus, long size) {
         this.artist = artist;
         this.duration = duration;
         this.name = name;

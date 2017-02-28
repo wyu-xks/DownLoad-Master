@@ -1,6 +1,7 @@
-package com.eegsmart.eegenjoysleep.entry;
+package com.wyuxks.downloadmaster.bean;
 
-import com.eegsmart.eegenjoysleep.config.MusicConstants;
+
+import com.wyuxks.downloadmaster.config.DownConstants;
 
 /**
  * 创建者      xks
@@ -15,7 +16,7 @@ public class DownLoadInfo {
     public String url;//下载的地址
     public String savePath;//保存的具体路径
     public long   max;//文件的最大长度
-    public int curState = MusicConstants.UNDOWNLOAD;//当前的状态,默认是未下载
+    public int curState = DownConstants.UNDOWNLOAD;//当前的状态,默认是未下载
     public long   progress;//记录最新的进度
 
     public Runnable downLoadTask;//下载的任务
